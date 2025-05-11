@@ -2,10 +2,16 @@ import streamlit as st
 import random
 from datetime import datetime
 from playback_controller import PlaybackController
-
-# Our generation class
 from loopgen import LoopGen
 
+# ---- Session State Initialization ----
+if "playback_controller" not in st.session_state:
+    st.session_state.playback_controller = PlaybackController()
+if "current_loop_params" not in st.session_state:
+    st.session_state.current_loop_params = {}
+if "simulated_hour" not in st.session_state:
+    st.session_state.simulated_hour = 7  # Start day at 7 AM
+    
 # ---- Constants ----
 GOALS = ["Focus", "Relax", "Energy", "Sleep", "Creative Flow", "Calm Confidence", "Romantic", "Reflective"]
 STYLES = ["Ambient", "Jazz", "Classical", "Electronic/EDM", "Pop", "World", "Folk/Acoustic", "Cinematic/Orchestral"]
@@ -111,7 +117,7 @@ def generate_music_parameters(goal, style, hour):
     chosen_scale = random.choice(SCALE_MAP.get(goal, ["Major"]))
     chosen_key = select_biased_key(goal, phase)
 
-    return {
+    params = {
         "simulated_hour": hour,
         "circadian_phase": phase,
         "bpm": bpm,
@@ -121,14 +127,11 @@ def generate_music_parameters(goal, style, hour):
         "instruments": chosen_instruments
     }
 
-# ---- Music Generation Class ----
-class GenerateMusic:
-    def __init__(self, params):
-        self.params = params
+    # Store current params for UI display
+    st.session_state.current_loop_params = params
 
-    def generate(self):
-        st.info("🎧 [Stub] Music generation started with parameters:")
-        st.json(self.params)
+    return params
+
 
 # ---- Streamlit UI ----
 st.title("🎵 Daily Wellness Music Generator")
@@ -139,12 +142,9 @@ goal_selection = st.radio("Select a Goal:", GOALS, horizontal=True)
 st.subheader("🎵 Choose Your Musical Style")
 style_selection = st.radio("Select a Style:", STYLES, horizontal=True)
 
-if "simulated_hour" not in st.session_state:
-    st.session_state.simulated_hour = 7  # Start day at 7 AM
-
 if goal_selection and style_selection:
     st.markdown("---")
-    st.subheader("🕒 **Testing: Simulate Time of Day**")
+    st.subheader("🕒 **Simulate Time of Day**")
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -161,31 +161,36 @@ if goal_selection and style_selection:
     st.subheader("🎶 Generated Music Parameters for Simulated Time")
     st.json(params)
 
-    """
-    if st.button("🎹 Generate Music"):
-        generator = GenerateMusic(params)
-        generator.generate()
-
-    if st.button("🎵 Play Loop"):
-        loop = LoopGen(params)
-        loop.generate()
-    """
-
-    if "playback_controller" not in st.session_state:
-        st.session_state.playback_controller = PlaybackController()
+    # ---- Continuous Playback Controls ----
+    st.subheader("🎛️ Playback Controls")
 
     def params_generator(goal, style, simulated_hour):
+        current_hour = simulated_hour
         while True:
-            yield generate_music_parameters(goal, style, simulated_hour)
-        st.subheader("🎛️ Playback Controls")
-    
-    # In your Streamlit button logic:
+            yield generate_music_parameters(goal, style, current_hour)
+            current_hour = (current_hour + 1) % 24
+
     if not st.session_state.playback_controller.is_playing:
         if st.button("▶️ Play Continuous"):
             goal = goal_selection
             style = style_selection
-            simulated_hour = st.session_state.simulated_hour  # Grab this before starting the thread
+            simulated_hour = st.session_state.simulated_hour
             st.session_state.playback_controller.start(params_generator(goal, style, simulated_hour))
     else:
         if st.button("⏹️ Stop"):
             st.session_state.playback_controller.stop()
+            st.experimental_rerun()
+
+    # ---- Show Current Playing Parameters ----
+    if st.session_state.current_loop_params:
+        st.subheader("🎵 Now Playing")
+        st.json(st.session_state.current_loop_params)
+
+    # ---- Manual Generation for Testing ----
+    if st.button("🎹 Generate Music (One Time)"):
+        generator = LoopGen(params)
+        generator.generate()
+
+    if st.button("🎵 Play Loop (One Time)"):
+        loop = LoopGen(params)
+        loop.generate()
