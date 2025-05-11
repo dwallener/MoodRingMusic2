@@ -2,6 +2,9 @@ import streamlit as st
 import random
 from datetime import datetime
 
+# Our generation class
+from loopgen import LoopGen
+
 # ---- Constants ----
 GOALS = ["Focus", "Relax", "Energy", "Sleep", "Creative Flow", "Calm Confidence", "Romantic", "Reflective"]
 STYLES = ["Ambient", "Jazz", "Classical", "Electronic/EDM", "Pop", "World", "Folk/Acoustic", "Cinematic/Orchestral"]
@@ -160,3 +163,7 @@ if goal_selection and style_selection:
     if st.button("🎹 Generate Music"):
         generator = GenerateMusic(params)
         generator.generate()
+
+    if st.button("🎵 Play Loop"):
+        loop = LoopGen(params)
+        loop.generate()
