@@ -11,6 +11,8 @@ if "current_loop_params" not in st.session_state:
     st.session_state.current_loop_params = {}
 if "simulated_hour" not in st.session_state:
     st.session_state.simulated_hour = 7  # Start day at 7 AM
+if "event_log" not in st.session_state:
+    st.session_state.event_log = []
 
 # ---- Constants ----
 GOALS = ["Focus", "Relax", "Energy", "Sleep", "Creative Flow", "Calm Confidence", "Romantic", "Reflective"]
@@ -111,12 +113,8 @@ def generate_music_parameters(goal, style, hour):
     phase = get_circadian_phase(hour)
     bpm_range = BPM_RANGES.get(goal, {}).get(phase, (80, 100))
     bpm = random.randint(*bpm_range)
-    # Choose loop phrase length with bias toward longer phrases
-    phrase_length = random.choices([4, 8, 16], weights=[1, 3, 5])[0]  # Strong bias toward 8 and 16
-
-    # Then generate that many chords in the progression
+    phrase_length = random.choices([4, 8, 16], weights=[1, 3, 5])[0]
     chosen_progression = " - ".join(random.choices(CHORD_PROGRESSIONS.get(goal, ["I-IV-V-I"]), k=phrase_length))
-    #chosen_progression = random.choice(CHORD_PROGRESSIONS.get(goal, ["I-IV-V-I"]))
     full_instrument_set = INSTRUMENT_SETS.get(style, [0])
     chosen_instruments = random.sample(full_instrument_set, min(len(full_instrument_set), random.choice([3, 4])))
     chosen_scale = random.choice(SCALE_MAP.get(goal, ["Major"]))
@@ -129,14 +127,22 @@ def generate_music_parameters(goal, style, hour):
         "chord_progression": chosen_progression,
         "scale": chosen_scale,
         "key": chosen_key,
-        "instruments": chosen_instruments
+        "instruments": chosen_instruments,
+        "phrase_length": phrase_length
     }
 
-    # Store current params for UI display
     st.session_state.current_loop_params = params
-
     return params
 
+def update_ui_event_log():
+    controller_log = st.session_state.playback_controller.event_log
+    st.session_state.event_log = controller_log.copy()
+
+def display_timeline():
+    st.subheader("📜 Recent Changes Timeline")
+    for event in reversed(st.session_state.event_log):
+        timestamp, key, bpm = event
+        st.markdown(f"- **{timestamp}** | 🎵 Key: `{key}` | 🕑 BPM: `{bpm}`")
 
 # ---- Streamlit UI ----
 st.title("🎵 Daily Wellness Music Generator")
@@ -177,19 +183,21 @@ if goal_selection and style_selection:
 
     if not st.session_state.playback_controller.is_playing:
         if st.button("▶️ Play Continuous"):
-            goal = goal_selection
-            style = style_selection
-            simulated_hour = st.session_state.simulated_hour
-            st.session_state.playback_controller.start(params_generator(goal, style, simulated_hour))
+            st.session_state.playback_controller.start(
+                params_generator(goal_selection, style_selection, st.session_state.simulated_hour)
+            )
     else:
         if st.button("⏹️ Stop"):
             st.session_state.playback_controller.stop()
             st.experimental_rerun()
 
-    # ---- Show Current Playing Parameters ----
+    # ---- Current Loop Parameters and Timeline ----
     if st.session_state.current_loop_params:
         st.subheader("🎵 Now Playing")
         st.json(st.session_state.current_loop_params)
+
+    update_ui_event_log()
+    display_timeline()
 
     # ---- Manual Generation for Testing ----
     if st.button("🎹 Generate Music (One Time)"):
