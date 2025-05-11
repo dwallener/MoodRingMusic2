@@ -11,7 +11,7 @@ if "current_loop_params" not in st.session_state:
     st.session_state.current_loop_params = {}
 if "simulated_hour" not in st.session_state:
     st.session_state.simulated_hour = 7  # Start day at 7 AM
-    
+
 # ---- Constants ----
 GOALS = ["Focus", "Relax", "Energy", "Sleep", "Creative Flow", "Calm Confidence", "Romantic", "Reflective"]
 STYLES = ["Ambient", "Jazz", "Classical", "Electronic/EDM", "Pop", "World", "Folk/Acoustic", "Cinematic/Orchestral"]
@@ -111,7 +111,12 @@ def generate_music_parameters(goal, style, hour):
     phase = get_circadian_phase(hour)
     bpm_range = BPM_RANGES.get(goal, {}).get(phase, (80, 100))
     bpm = random.randint(*bpm_range)
-    chosen_progression = random.choice(CHORD_PROGRESSIONS.get(goal, ["I-IV-V-I"]))
+    # Choose loop phrase length with bias toward longer phrases
+    phrase_length = random.choices([4, 8, 16], weights=[1, 3, 5])[0]  # Strong bias toward 8 and 16
+
+    # Then generate that many chords in the progression
+    chosen_progression = " - ".join(random.choices(CHORD_PROGRESSIONS.get(goal, ["I-IV-V-I"]), k=phrase_length))
+    #chosen_progression = random.choice(CHORD_PROGRESSIONS.get(goal, ["I-IV-V-I"]))
     full_instrument_set = INSTRUMENT_SETS.get(style, [0])
     chosen_instruments = random.sample(full_instrument_set, min(len(full_instrument_set), random.choice([3, 4])))
     chosen_scale = random.choice(SCALE_MAP.get(goal, ["Major"]))
