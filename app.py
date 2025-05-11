@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 from datetime import datetime
+from playback_controller import PlaybackController
 
 # Our generation class
 from loopgen import LoopGen
@@ -160,6 +161,7 @@ if goal_selection and style_selection:
     st.subheader("🎶 Generated Music Parameters for Simulated Time")
     st.json(params)
 
+    """
     if st.button("🎹 Generate Music"):
         generator = GenerateMusic(params)
         generator.generate()
@@ -167,3 +169,23 @@ if goal_selection and style_selection:
     if st.button("🎵 Play Loop"):
         loop = LoopGen(params)
         loop.generate()
+    """
+
+    if "playback_controller" not in st.session_state:
+        st.session_state.playback_controller = PlaybackController()
+
+    def params_generator(goal, style, simulated_hour):
+        while True:
+            yield generate_music_parameters(goal, style, simulated_hour)
+        st.subheader("🎛️ Playback Controls")
+    
+    # In your Streamlit button logic:
+    if not st.session_state.playback_controller.is_playing:
+        if st.button("▶️ Play Continuous"):
+            goal = goal_selection
+            style = style_selection
+            simulated_hour = st.session_state.simulated_hour  # Grab this before starting the thread
+            st.session_state.playback_controller.start(params_generator(goal, style, simulated_hour))
+    else:
+        if st.button("⏹️ Stop"):
+            st.session_state.playback_controller.stop()
